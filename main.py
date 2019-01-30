@@ -165,29 +165,24 @@ def bundle_query_to_playlist(q):
     return playlist_list
 
 def main():
-    database ="/home/nebrya/PycharmProjects/musicpredict/songs.db";
-    conn = create_connection(database)
-    #filter_details(conn)
 
+    #databases SongTable table follows column format (int userID, text song, text artist, text details)
+    database_path ="/home/user/Projects/musicpredict/songs.db";
 
-    '''
-    query = conn.execute("SELECT userID, song, artist FROM SongTable order by userID limit 4000000;");
-    bulk_playlists = bundle_query_to_playlist(query)
+    conn = create_connection(database_path)
+    #filter_details(conn) # use this initially to clean dataset in database
 
-    query = conn.execute("SELECT userID, song, artist FROM SongTable where userID = 0;");
-    source_playlist = bundle_query_to_playlist(query)[0]
-    num_results = 20
-    show_similar_playlists(source_playlist, bulk_playlists, 20)
-    '''
-
-    #Memory efficient alternative for local testing
     best_songs= []
     num_results = 20
     query = conn.execute("SELECT userID, song, artist FROM SongTable where userID = 0;");
+
+    max_index = conn.execute("SELECT MAX(userID) from SongTable;").fetchall()[0][0];
     source_playlist = bundle_query_to_playlist(query)[0]
-    # process 3 million rows at a time so memory does not crash
-    for i in range(0,96):
-        query = conn.execute("SELECT userID, song, artist FROM SongTable where userID > ? and userID <= ? order by userID;", (i*10000, (i+1)*10000));
+
+    block = 10000
+    # process in ranges of 10,000 at a time to conserve memory
+    for i in range(0,max_index/block +1):
+        query = conn.execute("SELECT userID, song, artist FROM SongTable where userID > ? and userID <= ? order by userID;", (i*block, (i+1)*block));
         print "checkpoint - finished round ", i
         bulk_playlists = bundle_query_to_playlist(query)
         best_songs += get_best_songs(source_playlist, bulk_playlists, num_results)
@@ -197,7 +192,7 @@ def main():
          print "SONG:", song_obj[0][0], "ARTIST:", song_obj[0][1], "SCORE:", song_obj[1]
 
 
-    #TODO: attempt with database, iteratively pull small loads into memory and process scores
+
     #TODO:  write functions to find most recommended artist instead of song
 
 if __name__ == '__main__':
